@@ -2,6 +2,7 @@ from whoosh import index
 from whoosh.fields import Schema, TEXT, NUMERIC, ID
 import os
 
+# init Whoosh indices
 schema = Schema(
     id=ID(stored=True, unique=True),
     content=TEXT(stored=True),

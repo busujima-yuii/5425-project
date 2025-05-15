@@ -1,3 +1,4 @@
+# 以punctuation为终止符将片段合并, 不足2秒的片段会自动合并到下一个片段
 def merge_segments(segments, min_seg_duration=2.0):
     merged = []
     buf = segments[0].copy()
