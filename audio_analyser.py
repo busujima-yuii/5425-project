@@ -94,7 +94,7 @@ class AudioAnalyser:
         1. dialogue_type (one of: action, horror, comedy, romance, fantasy, drama, documentary, other)
         2. theme (main theme or topic of the dialogue)
         3. emotional_tone (primary emotional tone)
-        4. confidence_score (0-1 indicating confidence in the analysis)
+        4. score (0-1 indicating confidence in the analysis)
         5. key_points (list of main points discussed)
 
         Dialogue: "{text}"
@@ -126,7 +126,7 @@ class AudioAnalyser:
                 "dialogue_type": "unknown",
                 "theme": "unknown",
                 "emotional_tone": "unknown",
-                "confidence_score": 0,
+                "score": 0,
                 "key_points": []
             }
     
