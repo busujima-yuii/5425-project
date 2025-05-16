@@ -41,7 +41,7 @@ openai_api_key = "api-key placeholder"
 summariser = AudioSummariser(openai_api_key)
 
  # Path to the Peppa Pig video
-video_path = "test/peppa_pig.MOV"
+video_path = "video_placeholder"
 
 try:
     overall_analysis, segment_analysis = summariser.summarise_audio(video_path)
