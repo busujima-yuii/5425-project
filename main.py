@@ -37,9 +37,6 @@ import json
 """AudioSummariser"""
 # Get API key from environment variable
 openai_api_key = "api-key placeholder"
-# api_key = os.getenv(openai_api_key)
-# if not api_key:
-#     print("Please set the OPENAI_API_KEY environment variable")
 
 summariser = AudioSummariser(openai_api_key)
 
