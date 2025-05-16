@@ -45,7 +45,7 @@ STOP_WORDS = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for
 class AudioSummariser:
     def __init__(self, openai_api_key: str = None):
         """
-        Initialize the AudioSummariser with Whisper model and OpenAI API.
+        Initialise the AudioSummariser with Whisper model and OpenAI API.
         
         Args:
             openai_api_key (str, optional): OpenAI API key. If not provided, will look for OPENAI_API_KEY environment variable.
