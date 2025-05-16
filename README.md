@@ -30,9 +30,6 @@ The summariser generates a detailed analysis of the video content, saved in the 
 - Primary Theme
 - Primary Emotional Tone
 - Key Points from the video
-- Distribution of dialogue types
-- Distribution of themes
-- Distribution of emotional tones
 
 ### Segment Analysis
 For each segment of the video, the analysis includes:
