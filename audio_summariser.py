@@ -3,6 +3,7 @@ from collections import defaultdict
 import re
 from typing import Dict, List, Tuple
 import numpy as np
+from openai import OpenAI as OpenAIClient
 import openai
 import json
 import os
@@ -101,7 +102,11 @@ class AudioSummariser:
         Respond in JSON format only."""
 
         try:
-            response = openai.ChatCompletion.create(
+            # Create a client instance with the API key
+            client = openai.OpenAI(api_key=openai.api_key)
+            
+            # Use the client with the new API structure
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a dialogue analysis expert. Provide concise, accurate analysis in JSON format."},
