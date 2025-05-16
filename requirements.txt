@@ -1,3 +1,5 @@
 openai-whisper
 ffmpeg-python
 whoosh
+numpy
+openai  # for GPT API access
