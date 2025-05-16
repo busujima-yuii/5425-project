@@ -14,8 +14,9 @@
 
 ## Usage for Audio Summariser
 
-1. Place your video file in the `test` directory
-2. Run the main script:
+1. Place your video file in the same directory
+2. Inside main.py, find video_path, and replace the directory of your video with "video_placeholder"
+3. Run the main script:
    ```bash
    python main.py
    ```
