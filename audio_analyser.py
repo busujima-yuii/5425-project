@@ -42,10 +42,10 @@ GENRE_KEYWORDS = {
 # Common words to ignore (stop words)
 STOP_WORDS = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
 
-class AudioSummariser:
+class AudioAnalyser:
     def __init__(self, openai_api_key: str = None):
         """
-        Initialise the AudioSummariser with Whisper model and OpenAI API.
+        Initialise the AudioAnalyser with Whisper model and OpenAI API.
         
         Args:
             openai_api_key (str, optional): OpenAI API key. If not provided, will look for OPENAI_API_KEY environment variable.
@@ -130,7 +130,7 @@ class AudioSummariser:
                 "key_points": []
             }
     
-    def summarise_audio(self, audio_path: str) -> Tuple[Dict, List[Dict]]:
+    def analyse_audio(self, audio_path: str) -> Tuple[Dict, List[Dict]]:
         """
         Analyse audio file and return overall analysis and segment-by-segment breakdown.
         

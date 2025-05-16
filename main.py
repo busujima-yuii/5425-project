@@ -6,7 +6,7 @@ from transcribe import transcribe
 import shutil
 
 from util import merge_segments
-from audio_summariser import AudioSummariser
+from audio_analyser import AudioAnalyser
 import json
 
 
@@ -34,17 +34,17 @@ import json
 #     with open("clip" + str(i) + ".mp4", "wb") as out:
 #         out.write(clipped_bytes)
 
-"""AudioSummariser"""
+"""AudioAnalyser"""
 # Get API key from environment variable
 openai_api_key = "api-key placeholder"
 
-summariser = AudioSummariser(openai_api_key)
+analyser = AudioAnalyser(openai_api_key)
 
  # Path to the Peppa Pig video
 video_path = "video_placeholder"
 
 try:
-    overall_analysis, segment_analysis = summariser.summarise_audio(video_path)
+    overall_analysis, segment_analysis = analyser.analyse_audio(video_path)
     
     print("\nOverall Analysis:")
     print(json.dumps(overall_analysis, indent=2))

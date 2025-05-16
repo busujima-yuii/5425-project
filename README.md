@@ -12,7 +12,7 @@
 
 3. Replace openai_api_key variable with key
 
-## Usage for Audio Summariser
+## Usage for Audio Analyser
 
 1. Place your video file in the same directory
 2. Inside main.py, find video_path, and replace the directory of your video with "video_placeholder"
@@ -23,7 +23,7 @@
 
 ## Output
 
-The summariser generates a detailed analysis of the video content, saved in the `results` directory as `{video_name}_results.json`. The analysis includes:
+The analyser generates a detailed analysis of the video content, saved in the `results` directory as `{video_name}_results.json`. The analysis includes:
 
 ### Overall Analysis
 - Primary Dialogue Type (e.g., action, horror, comedy, romance, fantasy)
