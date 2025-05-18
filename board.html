@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Video Analysis Tool</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      max-width: 600px;
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+      text-align: center;
+    }
+
+    .card {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      margin-top: 20px;
+    }
+
+    .input, .btn {
+      margin-top: 10px;
+      padding: 10px;
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      outline: none;
+    }
+
+    .btn {
+      background-color: #4CAF50;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .btn:hover {
+      background-color: #45a049;
+    }
+
+    .results {
+      text-align: left;
+      margin-top: 20px;
+    }
+
+    .results li {
+      background: #e7f3ff;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="container">
+    <h1><i class="fas fa-video"></i> Video Analysis Tool</h1>
+    <div class="card">
+      <input type="file" @change="handleUpload" class="input" />
+      <input v-model="keyword" placeholder="Enter keyword" class="input" />
+      <button @click="handleSearch" class="btn"><i class="fas fa-search"></i> Search</button>
+    </div>
+
+    <div v-if="results.length" class="results card">
+      <h2><i class="fas fa-list"></i> Search Results</h2>
+      <ul>
+        <li v-for="(res, index) in results" :key="index">
+          {{ res.text }}
+          <span>(Start: {{ res.start }}s, End: {{ res.end }}s)</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- 五维雷达图 -->
+    <div v-if="showRadar" class="card">
+      <h2>Video Analysis Score</h2>
+      <canvas id="radarChart" width="400" height="400"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, nextTick } = Vue;
+
+    createApp({
+      data() {
+        return {
+          file: null,
+          keyword: '',
+          results: [],
+          showRadar: false,
+          radarChart: null,
+          scores: [70, 50, 85, 40, 90]
+        };
+      },
+      methods: {
+        handleUpload(event) {
+          this.file = event.target.files[0];
+        },
+        async handleSearch() {
+          if (!this.keyword.trim()) {
+            alert("Please enter a keyword.");
+            return;
+          }
+
+          // 模拟测试数据
+          this.results = [
+            { text: "Keyword matched text - Example 1", start: 10, end: 20 },
+            { text: "Keyword matched text - Example 2", start: 30, end: 40 }
+          ];
+
+          // 生成随机评分数据
+          this.scores = [Math.random() * 100, Math.random() * 100, Math.random() * 100, Math.random() * 100, Math.random() * 100];
+          this.showRadar = true;
+
+          // 使用 nextTick 确保 DOM 渲染完成
+          await nextTick();
+          this.renderRadarChart();
+        },
+        renderRadarChart() {
+          // 确保 Canvas 存在
+          const canvas = document.getElementById('radarChart');
+          if (!canvas) {
+            console.error("Radar chart canvas not found.");
+            return;
+          }
+
+          const ctx = canvas.getContext('2d');
+          if (this.radarChart) {
+            this.radarChart.destroy();
+          }
+
+          this.radarChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+              labels: ['Action', 'Horror', 'Comedy', 'Romance', 'Fantasy'],
+              datasets: [{
+                label: 'Video Analysis Scores',
+                data: this.scores,
+                backgroundColor: 'rgba(77, 201, 246, 0.3)',
+                borderColor: '#4dc9f6',
+                pointBackgroundColor: '#4dc9f6',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: '#4dc9f6'
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: true,
+              scales: {
+                r: {
+                  beginAtZero: true,
+                  max: 100
+                }
+              }
+            }
+          });
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
