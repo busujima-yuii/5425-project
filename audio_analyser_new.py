@@ -1,8 +1,7 @@
 import os
 import json
 import openai
-from pydub import AudioSegment
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip, AudioFileClip
 from typing import List, Dict
 from collections import Counter, defaultdict
 
@@ -19,17 +18,29 @@ class AudioAnalysisPipeline:
         print(f"🎧 Audio extracted to: {output_path}")
         return output_path
 
-    def split_audio_to_chunks(self, audio_path, chunk_length=30 * 1000):
-        audio = AudioSegment.from_wav(audio_path)
+    def split_audio_to_chunks(self, audio_path, chunk_length=30):
+        """
+        Split audio into chunks using moviepy instead of pydub.
+        
+        Args:
+            audio_path: Path to input audio .wav
+            chunk_length: Length in seconds (default = 30)
+        
+        Returns:
+            List of (filename, start_time, end_time)
+        """
+        audio = AudioFileClip(audio_path)
+        duration = audio.duration
         chunks = []
-        total_ms = len(audio)
-        for i in range(0, total_ms, chunk_length):
-            chunk = audio[i:i + chunk_length]
-            start_sec = i / 1000
-            end_sec = min((i + chunk_length), total_ms) / 1000
-            fname = f"chunk_{int(start_sec)}_{int(end_sec)}.wav"
-            chunk.export(fname, format="wav")
-            chunks.append((fname, start_sec, end_sec))
+        i = 0
+        while i * chunk_length < duration:
+            start = i * chunk_length
+            end = min((i + 1) * chunk_length, duration)
+            chunk_clip = audio.subclip(start, end)
+            fname = f"chunk_{int(start)}_{int(end)}.wav"
+            chunk_clip.write_audiofile(fname, codec='pcm_s16le')
+            chunks.append((fname, start, end))
+            i += 1
         return chunks
 
     def transcribe_chunks_with_timestamps(self, chunks):
