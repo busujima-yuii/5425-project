@@ -1,22 +1,27 @@
 import os
 import json
-import openai
-from moviepy import VideoFileClip, AudioFileClip
+from openai import OpenAI
+from faster_whisper import WhisperModel as whisper
+from moviepy.editor import VideoFileClip, AudioFileClip
 from typing import List, Dict
 from collections import Counter, defaultdict
+from util import clean_and_merge_segments, extract_json_from_response
 
-openai.api_key = "YOUR_OPENAI_API_KEY"  # Replace with your actual key
+api_key = "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"
 
-class AudioAnalysisPipeline:
-    def __init__(self, model_name="whisper-1", gpt_model="gpt-4"):
-        self.whisper_model = model_name
+class AudioAnalysis:
+    def __init__(self, model_name="base", gpt_model="gpt-4o-mini", output_folder='audio_results'):
+        self.whisper_model= whisper(model_name)
         self.gpt_model = gpt_model
+        self.output_folder = output_folder
+        self.client = OpenAI(api_key=api_key)
+        os.makedirs(self.output_folder, exist_ok=True)
 
-    def extract_audio(self, video_path, output_path="audio.wav"):
+    def extract_audio(self, video_path):
         video = VideoFileClip(video_path)
-        video.audio.write_audiofile(output_path)
-        print(f"🎧 Audio extracted to: {output_path}")
-        return output_path
+        video.audio.write_audiofile(self.output_folder+"/audio.wav")
+        print(f"🎧 Audio extracted to: {self.output_folder+"/audio.wav"}")
+        return self.output_folder+"/audio.wav"
 
     def split_audio_to_chunks(self, audio_path, chunk_length=30):
         """
@@ -38,7 +43,7 @@ class AudioAnalysisPipeline:
             end = min((i + 1) * chunk_length, duration)
             chunk_clip = audio.subclip(start, end)
             fname = f"chunk_{int(start)}_{int(end)}.wav"
-            chunk_clip.write_audiofile(fname, codec='pcm_s16le')
+            chunk_clip.write_audiofile(self.output_folder+'/'+fname, codec='pcm_s16le')
             chunks.append((fname, start, end))
             i += 1
         return chunks
@@ -46,21 +51,39 @@ class AudioAnalysisPipeline:
     def transcribe_chunks_with_timestamps(self, chunks):
         transcript_with_timestamps = []
         for fname, start, end in chunks:
-            with open(fname, "rb") as f:
-                print(f"⏱️ Transcribing: {fname}")
-                resp = openai.Audio.transcribe(self.whisper_model, f)
-                transcript_with_timestamps.append({
-                    "start": start,
-                    "end": end,
-                    "text": resp["text"].strip()
-                })
+           # with open(fname, "rb") as f:
+            print(f"⏱️ Transcribing: {self.output_folder+'/'+fname}")
+            resp = self.whisper_model.transcribe(self.output_folder+'/'+fname)
+            transcript_with_timestamps.append({
+                "start": start,
+                "end": end,
+                "text": resp["text"].strip()
+            })
         return transcript_with_timestamps
 
+    def transcribe_with_timestamps(self, audio_path: str):
+        print(f"⏱️ Transcribing: {audio_path}...")
+        segment_results, info = self.whisper_model.transcribe(audio_path)
+
+        segments = [
+            {
+                "start":round(seg.start),
+                "end": round(seg.end),
+                "text": seg.text
+            }
+            for seg in segment_results
+        ]
+        print(f"⏱️ Done Transcribing: {audio_path}")
+        return segments
+
     def repair_segments_with_gpt(self, segments, window_size=3):
+        print(f"⏱️ Repairing segments...")
         repaired_results = []
         all_repaired_text = []
 
         for i in range(0, len(segments), window_size):
+            print(f"⏱️ Repairing: segment {i}/{len(segments)}")
+            
             group = segments[i:i+window_size]
             if not group:
                 continue
@@ -83,7 +106,7 @@ class AudioAnalysisPipeline:
                 "Summary: <short summary>"
             )
 
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model=self.gpt_model,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that reconstructs and summarizes transcript segments."},
@@ -92,7 +115,7 @@ class AudioAnalysisPipeline:
                 max_tokens=600
             )
 
-            output = response.choices[0].message["content"]
+            output = response.choices[0].message.content
 
             def extract_section(label):
                 try:
@@ -114,16 +137,18 @@ class AudioAnalysisPipeline:
 
             all_repaired_text.append(f"[{new_start:.1f}-{new_end:.1f}] {new_text}")
 
+        print(f"⏱️ Done repairing text.")
         return repaired_results, "\n".join(all_repaired_text)
 
     def summarize_full_transcript(self, full_text):
+        print(f"⏱️ Summarizing text...")
         prompt = (
             "Here is a complete reconstructed transcript of a video:\n\n"
             f"{full_text}\n\n"
             "Please summarize the entire content in 3–5 natural English sentences."
         )
 
-        response = openai.ChatCompletion.create(
+        response = self.client.chat.completions.create(
             model=self.gpt_model,
             messages=[
                 {"role": "system", "content": "You summarize full transcripts clearly and concisely."},
@@ -131,13 +156,17 @@ class AudioAnalysisPipeline:
             ],
             max_tokens=500
         )
+        print(f"⏱️ Done summarizing text.")
+        return response.choices[0].message.content.strip()
 
-        return response.choices[0].message["content"].strip()
-
-    def analyse_repaired_segments(self, repaired_segments: List[Dict]) -> List[Dict]:
+    def analyse_segments(self, segments: List[Dict], relevant_word:str) -> List[Dict]:
+        print(f"⏱️ Analyzing segments...")
         analysed_segments = []
-        for segment in repaired_segments:
-            text = segment["transcript"]
+        for i in range(0, len(segments)):
+            segment = segments[i]
+            print(f"⏱️ Analyzing segment {i}/{len(segments)}: {segment['text']}")
+        #for segment in segments:
+            text = segment["text"]
             prompt = f"""
             Analyse the following dialogue segment and provide a JSON response with:
             1. dialogue_type (e.g., action, horror, comedy, romance, fantasy, drama, documentary, other)
@@ -145,13 +174,25 @@ class AudioAnalysisPipeline:
             3. emotional_tone (primary emotional tone)
             4. score (0-1 indicating confidence in the analysis)
             5. key_points (list of main points discussed)
+            6. relevant_score (0-1 indicating score of relevance with the target word)
+            7. Summarize its main idea in 1–2 sentences.
 
+            Target word: \"{relevant_word}\"
             Dialogue: \"{text}\"
 
-            Respond in JSON format only.
+            Respond in JSON format only, no markdowns. Format in the following JSON schema 
+            {{
+                "dialogue_type": text,
+                "theme": text,
+                "emotional_tone": text,
+                "score": number,
+                "key_points": array of text,
+                "relevant_score": number,
+                "main_idea": text
+            }}
             """
             try:
-                response = openai.ChatCompletion.create(
+                response = self.client.chat.completions.create(
                     model=self.gpt_model,
                     messages=[
                         {"role": "system", "content": "You are a dialogue analysis expert."},
@@ -159,7 +200,9 @@ class AudioAnalysisPipeline:
                     ],
                     max_tokens=500
                 )
-                analysis = json.loads(response.choices[0].message.content)
+                cleaned = extract_json_from_response(response.choices[0].message.content)
+                #print(cleaned)
+                analysis = json.loads(cleaned)
             except Exception as e:
                 print(f"Error in segment analysis: {e}")
                 analysis = {
@@ -167,10 +210,13 @@ class AudioAnalysisPipeline:
                     "theme": "unknown",
                     "emotional_tone": "unknown",
                     "score": 0,
-                    "key_points": []
+                    "key_points": [],
+                    "relevant_score": 0,
+                    "main_idea": "unknown"
                 }
             segment["analysis"] = analysis
             analysed_segments.append(segment)
+        print(f"⏱️ Done analyzing segments.")
         return analysed_segments
 
     def summarize_analysis_distribution(self, analysed_segments: List[Dict]) -> Dict:
@@ -200,3 +246,49 @@ class AudioAnalysisPipeline:
             "average_score": round(sum(scores)/total, 3) if total > 0 else 0,
             "key_points": sorted(all_keypoints)
         }
+    
+    def run_audio_analysis(self, video_path:str, output_path:str, relevant_word:str):      
+        # Step 2: Transcribe + repair + analyze
+        # ✅ 保存路径
+        segments_path = os.path.join(output_path, 'audio_results', 'segments.json')
+
+        # ✅ 如果 segments.json 存在，则直接加载；否则重新转录
+        if os.path.exists(segments_path):
+            print("🔁 Loading cached segments from JSON...")
+            with open(segments_path, 'r', encoding='utf-8') as f:
+                segments = json.load(f)
+        else:
+            # Step 1: Extract + split audio
+            audio_path = self.extract_audio(video_path)
+            #chunks = audio_analysis.split_audio_to_chunks(audio_path)
+
+            print("📝 Transcribing audio...")
+            segments = self.transcribe_with_timestamps(audio_path)
+            with open(segments_path, 'w', encoding='utf-8') as f:
+                json.dump(segments, f, indent=2)
+
+        # repaired, full_text = audio_analysis.repair_segments_with_gpt(segments)
+
+        segments = clean_and_merge_segments(segments)
+
+        full = []
+        for seg in segments:
+            full.append(seg['text'])
+        full_text = "\n".join(full)
+        
+        analysed = self.analyse_segments(segments)
+        summary = self.summarize_full_transcript(full_text)
+        stats = self.summarize_analysis_distribution(analysed)
+
+        audio_result = {
+            "segments": analysed,
+            "full_summary": summary,
+            "distribution_summary": stats
+        }
+
+        with open(output_path+'/audio_analysis_results.json', "w", encoding="utf-8") as f:
+            json.dump(audio_result, f, indent=2)
+        print(f"✅ Audio analysis result saved to {output_path}")
+
+        return audio_result
+
