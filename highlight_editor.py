@@ -23,39 +23,68 @@ def collect_statistics(segments):
     return emotion_counter, theme_counter
 
 
-def find_matching_segments(segments, visuals, score_threshold=0.5):
+def match_keywords_in_text(text, keywords):
+    if not keywords:
+        return True
+    text = text.lower()
+    return any(kw.lower() in text for kw in keywords)
+
+
+def find_matching_segments(segments, visuals, score_threshold=0.5, emotion_filter=None, theme_filter=None, keywords=None):
     matched = []
-    covered_audio = 0
-    covered_visual = 0
-
-    for seg in segments:
-        if seg.get("relevant_score", 0) >= score_threshold:
-            matched.append({
-                "start": seg["start"],
-                "end": seg["end"],
-                "score": seg["relevant_score"],
-                "source": "audio"
-            })
-            covered_audio += 1
-
-    for frame in visuals:
-        if frame.get("relevant_score", 0) >= score_threshold:
-            ts = frame["timestamp"]
-            matched.append({
-                "start": ts - 1.0,
-                "end": ts + 2.0,
-                "score": frame["relevant_score"],
-                "source": "visual"
-            })
-            covered_visual += 1
-
-    coverage_info = {
-        "matched_audio_segments": covered_audio,
-        "matched_visual_frames": covered_visual,
-        "score_threshold": score_threshold
+    coverage = {
+        "matched_audio_segments": 0,
+        "matched_visual_frames": 0,
+        "score_threshold": score_threshold,
+        "emotion_filter": emotion_filter,
+        "theme_filter": theme_filter,
+        "keywords": keywords
     }
 
-    return matched, coverage_info
+    for seg in segments:
+        score = seg.get("relevant_score", 0)
+        analysis = seg.get("analysis", {})
+        emo = analysis.get("emotional_tone", "unknown")
+        theme = analysis.get("theme", "unknown")
+        text = seg.get("transcript", "") + seg.get("summary", "") + " ".join(analysis.get("key_points", []))
+
+        if score < score_threshold:
+            continue
+        if emotion_filter and emo not in emotion_filter:
+            continue
+        if theme_filter and theme not in theme_filter:
+            continue
+        if not match_keywords_in_text(text, keywords):
+            continue
+
+        matched.append({
+            "start": seg["start"],
+            "end": seg["end"],
+            "score": score,
+            "source": "audio",
+            "emotion": emo,
+            "theme": theme
+        })
+        coverage["matched_audio_segments"] += 1
+
+    for frame in visuals:
+        score = frame.get("relevant_score", 0)
+        desc = frame.get("description", "")
+        if score < score_threshold:
+            continue
+        if not match_keywords_in_text(desc, keywords):
+            continue
+
+        ts = frame["timestamp"]
+        matched.append({
+            "start": ts - 1.0,
+            "end": ts + 2.0,
+            "score": score,
+            "source": "visual"
+        })
+        coverage["matched_visual_frames"] += 1
+
+    return matched, coverage
 
 
 def merge_close_segments(segments, max_gap=3.0):
@@ -110,12 +139,19 @@ def print_statistics():
     print("📊 Theme Distribution:", dict(theme_counts))
 
 
-def run_keyword_highlight(video_path, score_threshold=0.5, max_duration=60.0):
-    print(f"🔍 Filtering segments by score >= {score_threshold}")
+def run_keyword_highlight(video_path, score_threshold=0.5, max_duration=60.0,
+                          emotion_filter=None, theme_filter=None, keywords=None):
+    print(f"🔍 Filtering segments by: score >= {score_threshold}, emotion = {emotion_filter}, theme = {theme_filter}, keywords = {keywords}")
 
     audio_segments = load_segments()
     visuals = load_visuals()
-    matched_segments, coverage_info = find_matching_segments(audio_segments, visuals, score_threshold)
+    matched_segments, coverage_info = find_matching_segments(
+        audio_segments, visuals,
+        score_threshold=score_threshold,
+        emotion_filter=emotion_filter,
+        theme_filter=theme_filter,
+        keywords=keywords
+    )
 
     merged_segments = merge_close_segments(matched_segments)
     limited_segments = limit_total_duration(merged_segments, max_duration=max_duration)
@@ -129,4 +165,11 @@ def run_keyword_highlight(video_path, score_threshold=0.5, max_duration=60.0):
 if __name__ == "__main__":
     video_path = "your_video.mp4"  # Replace with your actual video
     print_statistics()
-    run_keyword_highlight(video_path, score_threshold=0.5, max_duration=60.0)
+    run_keyword_highlight(
+        video_path,
+        score_threshold=0.5,
+        max_duration=60.0,
+        emotion_filter=["tense", "joyful"],
+        theme_filter=["war", "family"],
+        keywords=["escape", "reunion"]
+    )
