@@ -4,16 +4,27 @@ from moviepy.editor import VideoFileClip, concatenate_videoclips
 
 
 def load_segments(path="audio_analysis_results.json"):
+    if path[len(path)-1] != "/":
+        path = path+"/"
+    if "audio_results" not in path:
+        path = path+"audio_results/"
+    if "audio_analysis_results.json" not in path:
+        path = path+"audio_analysis_results.json"
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)["segments"]
 
-
 def load_visuals(path="visual_analysis_result.json"):
+    if path[len(path)-1] != "/":
+        path = path+"/"
+    if "visual_results" not in path:
+        path = path+"visual_results/"
+    if "visual_analysis_result.json" not in path:
+        path = path+"visual_analysis_result.json"
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)["frames"]
 
 
-def collect_statistics(segments):
+def collect_audio_statistics(segments):
     emotion_counter = Counter()
     theme_counter = Counter()
     for seg in segments:
@@ -132,19 +143,20 @@ def extract_clips(video_path, segments, output_path="highlight.mp4"):
         json.dump(metadata, f, indent=2)
 
 
-def print_statistics():
-    segments = load_segments()
-    emotion_counts, theme_counts = collect_statistics(segments)
+def print_statistics(file_path):
+    segments = load_segments(file_path)
+    visuals = load_visuals(file_path)
+    emotion_counts, theme_counts = collect_audio_statistics(segments)
     print("\n📊 Emotion Distribution:", dict(emotion_counts))
     print("📊 Theme Distribution:", dict(theme_counts))
 
 
-def run_keyword_highlight(video_path, score_threshold=0.5, max_duration=60.0,
+def run_keyword_highlight(video_path, file_path, score_threshold=0.5, max_duration=60.0,
                           emotion_filter=None, theme_filter=None, keywords=None):
     print(f"🔍 Filtering segments by: score >= {score_threshold}, emotion = {emotion_filter}, theme = {theme_filter}, keywords = {keywords}")
 
-    audio_segments = load_segments()
-    visuals = load_visuals()
+    audio_segments = load_segments(file_path)
+    visuals = load_visuals(file_path)
     matched_segments, coverage_info = find_matching_segments(
         audio_segments, visuals,
         score_threshold=score_threshold,
@@ -163,8 +175,10 @@ def run_keyword_highlight(video_path, score_threshold=0.5, max_duration=60.0,
 
 
 if __name__ == "__main__":
-    video_path = "your_video.mp4"  # Replace with your actual video
+    video_path = "E:/5425/Sense8.S01E03.mp4"
+    output_path = "E:/5425/"
     print_statistics()
+    
     run_keyword_highlight(
         video_path,
         score_threshold=0.5,

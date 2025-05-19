@@ -8,12 +8,13 @@ from openai import OpenAI, RateLimitError
 from typing import List, Dict, Tuple
 from datetime import datetime
 from PIL import Image
-from util import compress_image, extract_json_from_response
+from util import analyse_image_colors, compress_image, compute_ssim, extract_json_from_response
 from scenedetect import VideoManager, SceneManager
 from scenedetect.detectors import ContentDetector
 from scenedetect.scene_manager import save_images
 
-api_key = "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"
+api_key = "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"
+
 
 class VisualAnalysis:
     def __init__(self, output_folder="keyframes"):
@@ -21,26 +22,14 @@ class VisualAnalysis:
         self.client = OpenAI(api_key=api_key)
         os.makedirs(self.output_folder, exist_ok=True)
 
-    def compute_ssim(self, img1, img2):
-        img1 = img1.astype(np.float32)
-        img2 = img2.astype(np.float32)
-        C1 = 6.5025
-        C2 = 58.5225
-        kernel = cv2.getGaussianKernel(11, 1.5)
-        window = kernel @ kernel.T
-        mu1 = cv2.filter2D(img1, -1, window)
-        mu2 = cv2.filter2D(img2, -1, window)
-        mu1_sq = mu1 ** 2
-        mu2_sq = mu2 ** 2
-        mu1_mu2 = mu1 * mu2
-        sigma1_sq = cv2.filter2D(img1 ** 2, -1, window) - mu1_sq
-        sigma2_sq = cv2.filter2D(img2 ** 2, -1, window) - mu2_sq
-        sigma12 = cv2.filter2D(img1 * img2, -1, window) - mu1_mu2
-        ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / \
-                   ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
-        return ssim_map.mean()
-
-    def extract_keyframes(self, video_path: str, ssim_threshold=0.5, min_frame_gap=240, max_keyframes=None, scoring='ssim') -> List[Dict]:
+    def extract_keyframes(
+        self,
+        video_path: str,
+        ssim_threshold=0.5,
+        min_frame_gap=240,
+        max_keyframes=None,
+        scoring="ssim",
+    ) -> List[Dict]:
         print("\n🖼️ Extracting keyframes...")
         cap = cv2.VideoCapture(video_path)
         success, prev_frame = cap.read()
@@ -53,7 +42,7 @@ class VisualAnalysis:
             success, frame = cap.read()
             if not success:
                 break
-            
+
             if frame_idx % 10 != 0:
                 frame_idx += 1
                 continue
@@ -61,17 +50,24 @@ class VisualAnalysis:
             print(f"Extracting keyframes{frame_idx}...")
 
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            ssim_score = self.compute_ssim(prev_gray, gray_frame)
+            ssim_score = compute_ssim(prev_gray, gray_frame)
 
-            if ssim_score < ssim_threshold and (frame_idx - last_frame_idx) >= min_frame_gap:
+            if (
+                ssim_score < ssim_threshold
+                and (frame_idx - last_frame_idx) >= min_frame_gap
+            ):
                 timestamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
-                score = 1.0 - ssim_score if scoring == 'ssim' else 0  # more different means more interesting
-                candidates.append({
-                    "timestamp": round(timestamp, 2),
-                    "frame": frame,
-                    "score": score,
-                    "frame_idx": frame_idx
-                })
+                score = (
+                    1.0 - ssim_score if scoring == "ssim" else 0
+                )  # more different means more interesting
+                candidates.append(
+                    {
+                        "timestamp": round(timestamp, 2),
+                        "frame": frame,
+                        "score": score,
+                        "frame_idx": frame_idx,
+                    }
+                )
                 last_frame_idx = frame_idx
 
             prev_gray = gray_frame
@@ -83,8 +79,12 @@ class VisualAnalysis:
         print("\n🖼️ Sampling keyframes...")
 
         if max_keyframes and len(candidates) > max_keyframes:
-            candidates = sorted(candidates, key=lambda x: x['score'], reverse=True)[:max_keyframes]
-            candidates = sorted(candidates, key=lambda x: x['frame_idx'])  # restore chronological order
+            candidates = sorted(candidates, key=lambda x: x["score"], reverse=True)[
+                :max_keyframes
+            ]
+            candidates = sorted(
+                candidates, key=lambda x: x["frame_idx"]
+            )  # restore chronological order
 
         keyframes = []
         for i, cand in enumerate(candidates):
@@ -92,17 +92,26 @@ class VisualAnalysis:
             print(f"\n🖼️ Saving {fname}...")
             fpath = os.path.join(self.output_folder, fname)
             cv2.imwrite(fpath, cand["frame"])
-            keyframes.append({
-                "timestamp": cand["timestamp"],
-                "filepath": fpath,
-                "frame": cand["frame"]
-            })
+            keyframes.append(
+                {
+                    "timestamp": cand["timestamp"],
+                    "filepath": fpath,
+                    "frame": cand["frame"],
+                }
+            )
 
         return keyframes
-    
-    def extract_keyframes_pyscenedetect(self, video_path: str, threshold: float = 30.0, ssim_threshold=0.5, max_keyframes: int = None) -> List[Dict]:
+
+    def extract_keyframes_pyscenedetect(
+        self,
+        video_path: str,
+        threshold: float = 30.0,
+        ssim_threshold=0.5,
+        max_keyframes: int = None,
+    ) -> List[Dict]:
         from datetime import timedelta
         import cv2
+
         print("\n🖼️ Extracting keyframes...")
 
         video_manager = VideoManager([video_path])
@@ -132,42 +141,47 @@ class VisualAnalysis:
             filepath = os.path.join(self.output_folder, filename)
             # print(f"\n🖼️ Saving {filename}...")
             # cv2.imwrite(filepath, frame)
-            keyframes.append({
-                "timestamp": round(timestamp, 2),
-                "filepath": filepath,
-                "frame": frame
-            })
+            keyframes.append(
+                {"timestamp": round(timestamp, 2), "filepath": filepath, "frame": frame}
+            )
 
         cap.release()
 
         print("\n🖼️ Sampling keyframes...")
 
-        prev_frame = keyframes[0]['frame']
+        prev_frame = keyframes[0]["frame"]
         prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
         candidates = []
 
         for idx in range(len(keyframes)):
-            frame = keyframes[idx]['frame']
-            
+            frame = keyframes[idx]["frame"]
+
             print(f"Extracting keyframes{idx}/{len(keyframes)}...")
 
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            ssim_score = self.compute_ssim(prev_gray, gray_frame)
+            ssim_score = compute_ssim(prev_gray, gray_frame)
 
-            timestamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
+            timestamp = keyframes[idx]["timestamp"]
             score = 1.0 - ssim_score
-            candidates.append({
-                "timestamp": round(timestamp, 2),
-                "frame": frame,
-                "score": score
-            })
+            candidates.append(
+                {
+                    "timestamp": round(timestamp, 2),
+                    "frame": frame,
+                    "score": score,
+                    "frame_idx": idx,
+                }
+            )
 
             prev_gray = gray_frame
             prev_frame = frame
 
         if max_keyframes and len(candidates) > max_keyframes:
-            candidates = sorted(candidates, key=lambda x: x['score'], reverse=True)[:max_keyframes]
-            candidates = sorted(candidates, key=lambda x: x['frame_idx'])  # restore chronological order
+            candidates = sorted(candidates, key=lambda x: x["score"], reverse=True)[
+                :max_keyframes
+            ]
+            candidates = sorted(
+                candidates, key=lambda x: x["frame_idx"]
+            )  # restore chronological order
 
         keyframes = []
         for i, cand in enumerate(candidates):
@@ -175,69 +189,54 @@ class VisualAnalysis:
             print(f"\n🖼️ Saving {fname}...")
             fpath = os.path.join(self.output_folder, fname)
             cv2.imwrite(fpath, cand["frame"])
-            keyframes.append({
-                "timestamp": cand["timestamp"],
-                "filepath": fpath,
-                "frame": cand["frame"]
-            })
+            keyframes.append(
+                {
+                    "timestamp": cand["timestamp"],
+                    "filepath": fpath,
+                    "frame": cand["frame"],
+                }
+            )
 
         return keyframes
-    
-    def analyse_frame_colors(self, frame: np.ndarray) -> Dict:
-        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        hist = cv2.calcHist([hsv_frame], [0], None, [180], [0, 180]).flatten()
-        hist /= hist.sum()
-        dominant_indices = np.argsort(hist)[-5:][::-1]
-        dominant_colors = []
-        for idx in dominant_indices:
-            hue = idx
-            percentage = float(hist[idx] * 100)
-            color_name = self.hue_to_color_name(hue)
-            dominant_colors.append({"color": color_name, "hue": int(hue), "percentage": round(percentage, 2)})
-        return {
-            "dominant_colors": dominant_colors,
-            "color_diversity": float(np.sum(hist > 0.01) / len(hist))
-        }
-
-    def hue_to_color_name(self, hue: int) -> str:
-        color_ranges = {
-            (0, 10): "Red", (11, 20): "Orange-Red", (21, 30): "Orange",
-            (31, 40): "Yellow-Orange", (41, 60): "Yellow", (61, 80): "Yellow-Green",
-            (81, 100): "Green", (101, 120): "Cyan-Green", (121, 140): "Cyan",
-            (141, 160): "Blue-Cyan", (161, 180): "Blue"
-        }
-        for (lower, upper), color in color_ranges.items():
-            if lower <= hue <= upper:
-                return color
-        return "Unknown"
 
     def describe_image_with_gpt(self, image_path: str) -> str:
         compressed = compress_image(image_path)
         with open(compressed, "rb") as image_file:
             image_b64 = base64.b64encode(image_file.read()).decode("utf-8")
 
-        for i in range(3):    
+        for i in range(3):
             try:
                 response = self.client.chat.completions.create(
-                    model = 'gpt-4o-mini',
+                    model="gpt-4o-mini",
                     messages=[
-                        {"role": "system", "content": "You describe visual content in clear and short English."},
+                        {
+                            "role": "system",
+                            "content": "You describe visual content in clear and short English.",
+                        },
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "Please describe the main objects and scene in this image."},
-                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
-                            ]
-                        }
+                                {
+                                    "type": "text",
+                                    "text": "Please describe the main objects and scene in this image.",
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{image_b64}"
+                                    },
+                                },
+                            ],
+                        },
                     ],
-                    max_tokens=150
+                    max_tokens=150,
                 )
                 return response.choices[0].message.content
             except RateLimitError as e:
-                wait_time = 10 * (2 ** i)
+                wait_time = 10 * (2**i)
                 print(f"⚠️ Rate limit hit. Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
-        
+
         return "[ERROR] Description failed after retries."
 
     def get_theme_analysis(self, color_distribution: Dict[str, float]) -> Dict:
@@ -266,14 +265,17 @@ class VisualAnalysis:
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "You are a video analysis expert specialising in color theory and visual storytelling."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a video analysis expert specialising in color theory and visual storytelling.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.3,
-                max_tokens=500
+                max_tokens=500,
             )
             cleaned = extract_json_from_response(response.choices[0].message.content)
-            #print(cleaned)
+            # print(cleaned)
             return json.loads(cleaned)
         except Exception as e:
             print(f"Error in OpenAI API call: {str(e)}")
@@ -282,9 +284,8 @@ class VisualAnalysis:
                 "mood": "unknown",
                 "genre": "unknown",
                 "confidence_score": 0,
-                "reasoning": "Error in theme analysis"
+                "reasoning": "Error in theme analysis",
             }
-        
 
     def get_frame_analysis(self, relevant_word: str, image_path: str) -> Dict:
         prompt = f"""Based on the frame picture in a video, analyze the potential theme, mood, and genre.
@@ -315,28 +316,45 @@ class VisualAnalysis:
         with open(compressed, "rb") as image_file:
             image_b64 = base64.b64encode(image_file.read()).decode("utf-8")
 
-        for i in range(3):    
+        for i in range(3):
             try:
                 response = self.client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
-                        {"role": "system", "content": "You are a video analysis expert specialising in color theory and visual storytelling."},
-                        {"role": "user", "content": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
+                        {
+                            "role": "system",
+                            "content": "You are a video analysis expert specialising in color theory and visual storytelling.",
+                        },
+                        # {"role": "user", "content": prompt},
+                        # {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}},
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{image_b64}"
+                                    },
+                                },
+                            ],
+                        },
                     ],
                     temperature=0.3,
-                    max_tokens=500
+                    max_tokens=500,
                 )
-                cleaned = extract_json_from_response(response.choices[0].message.content)
-                #print(cleaned)
+                cleaned = extract_json_from_response(
+                    response.choices[0].message.content
+                )
+                # print(cleaned)
                 return json.loads(cleaned)
             except RateLimitError as e:
-                wait_time = 10 * (2 ** i)
+                wait_time = 10 * (2**i)
                 print(f"⚠️ Rate limit hit. Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
             except Exception as e:
                 print(f"Error in OpenAI API call: {str(e)}")
-                
+
         return {
             "theme": "unknown",
             "mood": "unknown",
@@ -344,24 +362,28 @@ class VisualAnalysis:
             "confidence_score": 0,
             "relevant_score": 0,
             "main_idea": "unknown",
-            "reasoning": "Error in theme analysis"
+            "reasoning": "Error in theme analysis",
         }
 
-    def analyse_video(self, video_path: str, relevant_word: str, max_frames = 30) -> List[Dict]:
+    def analyse_video(
+        self, video_path: str, relevant_word: str, max_frames=30
+    ) -> List[Dict]:
         cache_path = os.path.join(self.output_folder, "keyframes.json")
         if os.path.exists(cache_path):
             print("🔁 Loading keyframes from cache...")
             with open(cache_path, "r", encoding="utf-8") as f:
                 keyframes = json.load(f)
         else:
-            keyframes = self.extract_keyframes_pyscenedetect(video_path, max_keyframes=max_frames)
+            keyframes = self.extract_keyframes_pyscenedetect(
+                video_path, max_keyframes=max_frames
+            )
             # remove frame ndarray before saving
             serializable_keyframes = [
                 {k: v for k, v in kf.items() if k != "frame"} for kf in keyframes
             ]
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(serializable_keyframes, f, indent=2)
-        
+
         analysed_keyframes = []
         color_distribution = {}
 
@@ -370,14 +392,16 @@ class VisualAnalysis:
                 time.sleep(10)
             print(f"\n🖼️ Analysis keyframes{i}...")
             kf = keyframes[i]
-            
+
             if "frame" in kf:
                 frame = kf["frame"]
             else:
                 frame = cv2.imread(kf["filepath"])
 
-            color_analysis = self.analyse_frame_colors(frame)
-            description = self.get_frame_analysis(image_path=kf["filepath"], relevant_word=relevant_word)
+            color_analysis = analyse_image_colors(frame)
+            description = self.get_frame_analysis(
+                image_path=kf["filepath"], relevant_word=relevant_word
+            )
 
             for color_info in color_analysis["dominant_colors"]:
                 color = color_info["color"]
@@ -385,16 +409,18 @@ class VisualAnalysis:
                     color_distribution[color] = 0
                 color_distribution[color] += 1
 
-            analysed_keyframes.append({
-                "timestamp": kf["timestamp"],
-                "image_path": kf["filepath"],
-                "color_analysis": color_analysis,
-                "description": description
-            })
+            analysed_keyframes.append(
+                {
+                    "timestamp": kf["timestamp"],
+                    "image_path": kf["filepath"],
+                    "color_analysis": color_analysis,
+                    "description": description,
+                }
+            )
 
         total_frames = len(analysed_keyframes)
         color_distribution_percentages = {
-            color: round(count/total_frames * 100, 2)
+            color: round(count / total_frames * 100, 2)
             for color, count in color_distribution.items()
         }
 
@@ -402,16 +428,24 @@ class VisualAnalysis:
 
         overall_result = {
             "primary_colors": sorted(
-                [(color, count/total_frames) for color, count in color_distribution.items()],
-                key=lambda x: x[1], reverse=True
+                [
+                    (color, count / total_frames)
+                    for color, count in color_distribution.items()
+                ],
+                key=lambda x: x[1],
+                reverse=True,
             )[:5],
             "color_distribution": color_distribution_percentages,
             "theme_analysis": theme_analysis,
             "analysis_timestamp": datetime.now().isoformat(),
-            "total_keyframes_analysed": total_frames
+            "total_keyframes_analysed": total_frames,
         }
 
-        with open(self.output_folder+"/visual_analysis_result.json", "w", encoding="utf-8") as f:
-            json.dump({"frames": analysed_keyframes, "overall": overall_result}, f, indent=2)
+        with open(
+            self.output_folder + "/visual_analysis_result.json", "w", encoding="utf-8"
+        ) as f:
+            json.dump(
+                {"frames": analysed_keyframes, "overall": overall_result}, f, indent=2
+            )
 
         return analysed_keyframes

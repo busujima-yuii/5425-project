@@ -35,4 +35,4 @@ if __name__ == "__main__":
     video_file = "E:/5425/Sense8.S01E03.mp4"
     output_path = 'E:/5425'
     test_audio_analysis(video_file,output_path)
-    test_visual_analysis(video_file,output_path)
+    #test_visual_analysis(video_file,output_path)
