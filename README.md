@@ -48,6 +48,10 @@ pip install -r requirements.txt
 - `opencv-python`
 - `scenedetect`
 
+## Things to do before running
+
+Remember to change openai-apikey before you run the scripts. You may contact our group for api-key to test this project(assgignment)
+
 ## 💻 How to Launch the GUI
 
 ```bash
