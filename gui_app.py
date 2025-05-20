@@ -142,13 +142,13 @@ def analyze_video(keyword):
         "dialogue_type": Counter(),
     }
 
-    print('Done Loading/Analysing Results')
+    print("Done Loading/Analysing Results")
 
     if os.path.exists(audio_result_path):
         with open(audio_result_path, "r", encoding="utf-8") as f:
             data = json.load(f)
             summary = data.get("full_summary", "")
-            stats = data.get("distribution_summary", {})            
+            stats = data.get("distribution_summary", {})
             for seg in data.get("segments", []):
                 a = seg.get("analysis", {})
                 counters["emotion"][a.get("emotional_tone", "unknown")] += 1
@@ -200,7 +200,7 @@ def generate_highlight(
 
     # actual_threshold = score_threshold if use_relevance else 0.0
 
-    run_keyword_highlight(
+    output_path = run_keyword_highlight(
         video_path=state["video_path"],
         file_path=state["output_path"],
         score_threshold=score_threshold,
@@ -213,7 +213,7 @@ def generate_highlight(
         keywords=[keyword_input] if keyword_input else None,
         use_relevant=use_relevance,
     )
-    return os.path.join(state["output_path"], "highlight.mp4")
+    return output_path
 
 
 with gr.Blocks() as demo:
@@ -292,7 +292,9 @@ with gr.Blocks() as demo:
         ],
     )
 
-    matching_keyword_input = gr.Textbox(label="Enter Keyword for matching (e.g. danger)")
+    matching_keyword_input = gr.Textbox(
+        label="Enter Keyword for matching (e.g. danger)"
+    )
     use_relevance = gr.Checkbox(label="Use Relevant Score in Matching", value=True)
     generate_btn = gr.Button("🎞️ Generate Highlight")
     highlight_output = gr.Video(label="Output Highlight")

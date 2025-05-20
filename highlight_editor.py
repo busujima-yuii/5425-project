@@ -1,5 +1,6 @@
 import json
 from collections import Counter
+import time
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 import os
 import pickle
@@ -389,8 +390,8 @@ def limit_total_duration(segments, max_duration=60.0):
 def extract_clips(video_path, segments, output_path="highlight.mp4"):
     os.makedirs(output_path, exist_ok=True)
     data_path = output_path
-    if "highlight.mp4" not in output_path:
-        output_path = output_path + "/highlight.mp4"
+    if ".mp4" not in output_path:
+        output_path = output_path + f"/highlight_{int(time.time())}.mp4"
 
     video = VideoFileClip(video_path)
     max_duration = video.duration
@@ -433,6 +434,8 @@ def extract_clips(video_path, segments, output_path="highlight.mp4"):
     }
     with open(data_path + "/highlight_metadata.json", "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
+    
+    return output_path
 
 
 def print_statistics(file_path):
