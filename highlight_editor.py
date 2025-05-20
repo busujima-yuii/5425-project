@@ -303,31 +303,43 @@ def find_matching_segments_with_embeddings(
         matched = []
         for seg in segments:
             analysis = seg.get("analysis", {})
-            matched.append({
-                "start": seg["start"],
-                "end": seg["end"],
-                "score": analysis.get("relevant_score", 1.0) if use_relevant else analysis.get("score", 1.0),
-                "source": "audio",
-                "theme": analysis.get("theme"),
-                "emotion": analysis.get("emotional_tone"),
-                "dialogue_type": analysis.get("dialogue_type"),
-            })
+            matched.append(
+                {
+                    "start": seg["start"],
+                    "end": seg["end"],
+                    "score": (
+                        analysis.get("relevant_score", 1.0)
+                        if use_relevant
+                        else analysis.get("score", 1.0)
+                    ),
+                    "source": "audio",
+                    "theme": analysis.get("theme"),
+                    "emotion": analysis.get("emotional_tone"),
+                    "dialogue_type": analysis.get("dialogue_type"),
+                }
+            )
 
         for frame in visuals:
             desc = frame.get("description", {})
             ts = frame["timestamp"]
-            matched.append({
-                "start": ts - 1.0,
-                "end": ts + 2.0,
-                "score": analysis.get("relevant_score", 1.0) if use_relevant else analysis.get("score", 1.0),
-                "source": "visual",
-                "theme": desc.get("theme"),
-                "mood": desc.get("mood"),
-                "genre": desc.get("genre"),
-            })
-    else: 
+            matched.append(
+                {
+                    "start": ts - 1.0,
+                    "end": ts + 2.0,
+                    "score": (
+                        analysis.get("relevant_score", 1.0)
+                        if use_relevant
+                        else analysis.get("score", 1.0)
+                    ),
+                    "source": "visual",
+                    "theme": desc.get("theme"),
+                    "mood": desc.get("mood"),
+                    "genre": desc.get("genre"),
+                }
+            )
+    else:
         matched = collect_matches(filters, use_relevant=use_relevant)
-    
+
     fallback_used = False
     if len(matched) < min_results:
         fallback_used = True
@@ -376,6 +388,7 @@ def limit_total_duration(segments, max_duration=60.0):
 
 def extract_clips(video_path, segments, output_path="highlight.mp4"):
     os.makedirs(output_path, exist_ok=True)
+    data_path = output_path
     if "highlight.mp4" not in output_path:
         output_path = output_path + "/highlight.mp4"
 
@@ -418,7 +431,7 @@ def extract_clips(video_path, segments, output_path="highlight.mp4"):
         "clips": segments,
         "total_duration": sum(s["end"] - s["start"] for s in segments),
     }
-    with open("highlight_metadata.json", "w", encoding="utf-8") as f:
+    with open(data_path + "/highlight_metadata.json", "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
 
 
