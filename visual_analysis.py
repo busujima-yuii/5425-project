@@ -8,7 +8,12 @@ from openai import OpenAI, RateLimitError
 from typing import List, Dict, Tuple
 from datetime import datetime
 from PIL import Image
-from util import analyse_image_colors, compress_image, compute_ssim, extract_json_from_response
+from util import (
+    analyse_image_colors,
+    compress_image,
+    compute_ssim,
+    extract_json_from_response,
+)
 from scenedetect import VideoManager, SceneManager
 from scenedetect.detectors import ContentDetector
 from scenedetect.scene_manager import save_images
@@ -288,6 +293,11 @@ class VisualAnalysis:
             }
 
     def get_frame_analysis(self, relevant_word: str, image_path: str) -> Dict:
+        relevant_word = (
+            "No specific target word. Just analyse freely."
+            if relevant_word is None or relevant_word == ""
+            else relevant_word
+        )
         prompt = f"""Based on the frame picture in a video, analyze the potential theme, mood, and genre.
         Provide your analysis in JSON format with the following fields:
         - theme: main theme or subject matter
@@ -369,6 +379,7 @@ class VisualAnalysis:
         self, video_path: str, relevant_word: str, max_frames=30
     ) -> List[Dict]:
         cache_path = os.path.join(self.output_folder, "keyframes.json")
+        result_path = os.path.join(self.output_folder, "visual_analysis_result.json")
         if os.path.exists(cache_path):
             print("🔁 Loading keyframes from cache...")
             with open(cache_path, "r", encoding="utf-8") as f:
@@ -384,68 +395,74 @@ class VisualAnalysis:
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(serializable_keyframes, f, indent=2)
 
-        analysed_keyframes = []
-        color_distribution = {}
+        if os.path.exists(result_path):
+            print("🔁 Loading results from cache...")
+            with open(result_path, "r", encoding="utf-8") as f:
+                result = json.load(f)
+                return result["frames"]
+        else:
+            analysed_keyframes = []
+            color_distribution = {}
 
-        for i in range(len(keyframes)):
-            if i % 5 == 0:  # 每5帧暂停10秒
-                time.sleep(10)
-            print(f"\n🖼️ Analysis keyframes{i}...")
-            kf = keyframes[i]
+            for i in range(len(keyframes)):
+                if i % 5 == 0:  # 每5帧暂停10秒
+                    time.sleep(10)
+                print(f"\n🖼️ Analysis keyframes{i}...")
+                kf = keyframes[i]
 
-            if "frame" in kf:
-                frame = kf["frame"]
-            else:
-                frame = cv2.imread(kf["filepath"])
+                if "frame" in kf:
+                    frame = kf["frame"]
+                else:
+                    frame = cv2.imread(kf["filepath"])
 
-            color_analysis = analyse_image_colors(frame)
-            description = self.get_frame_analysis(
-                image_path=kf["filepath"], relevant_word=relevant_word
-            )
+                color_analysis = analyse_image_colors(frame)
+                description = self.get_frame_analysis(
+                    image_path=kf["filepath"], relevant_word=relevant_word
+                )
 
-            for color_info in color_analysis["dominant_colors"]:
-                color = color_info["color"]
-                if color not in color_distribution:
-                    color_distribution[color] = 0
-                color_distribution[color] += 1
+                for color_info in color_analysis["dominant_colors"]:
+                    color = color_info["color"]
+                    if color not in color_distribution:
+                        color_distribution[color] = 0
+                    color_distribution[color] += 1
 
-            analysed_keyframes.append(
-                {
-                    "timestamp": kf["timestamp"],
-                    "image_path": kf["filepath"],
-                    "color_analysis": color_analysis,
-                    "description": description,
-                }
-            )
+                analysed_keyframes.append(
+                    {
+                        "timestamp": kf["timestamp"],
+                        "image_path": kf["filepath"],
+                        "color_analysis": color_analysis,
+                        "description": description,
+                    }
+                )
 
-        total_frames = len(analysed_keyframes)
-        color_distribution_percentages = {
-            color: round(count / total_frames * 100, 2)
-            for color, count in color_distribution.items()
-        }
+            total_frames = len(analysed_keyframes)
+            color_distribution_percentages = {
+                color: round(count / total_frames * 100, 2)
+                for color, count in color_distribution.items()
+            }
 
-        theme_analysis = self.get_theme_analysis(color_distribution_percentages)
+            theme_analysis = self.get_theme_analysis(color_distribution_percentages)
 
-        overall_result = {
-            "primary_colors": sorted(
-                [
-                    (color, count / total_frames)
-                    for color, count in color_distribution.items()
-                ],
-                key=lambda x: x[1],
-                reverse=True,
-            )[:5],
-            "color_distribution": color_distribution_percentages,
-            "theme_analysis": theme_analysis,
-            "analysis_timestamp": datetime.now().isoformat(),
-            "total_keyframes_analysed": total_frames,
-        }
+            overall_result = {
+                "primary_colors": sorted(
+                    [
+                        (color, count / total_frames)
+                        for color, count in color_distribution.items()
+                    ],
+                    key=lambda x: x[1],
+                    reverse=True,
+                )[:5],
+                "color_distribution": color_distribution_percentages,
+                "theme_analysis": theme_analysis,
+                "analysis_timestamp": datetime.now().isoformat(),
+                "total_keyframes_analysed": total_frames,
+            }
 
-        with open(
-            self.output_folder + "/visual_analysis_result.json", "w", encoding="utf-8"
-        ) as f:
-            json.dump(
-                {"frames": analysed_keyframes, "overall": overall_result}, f, indent=2
-            )
+            with open(result_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {"frames": analysed_keyframes, "overall": overall_result},
+                    f,
+                    indent=2,
+                )
 
-        return analysed_keyframes
+            return analysed_keyframes

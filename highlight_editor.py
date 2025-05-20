@@ -193,6 +193,7 @@ def find_matching_segments_with_embeddings(
     genre_filter=None,
     dialogue_type_filter=None,
     min_results=5,
+    use_relevant=True,
 ):
     from copy import deepcopy
 
@@ -213,15 +214,19 @@ def find_matching_segments_with_embeddings(
                 return False
         return True
 
-    def score_audio(seg, emb_vec):
+    def score_audio(seg, emb_vec, use_relevant=True):
         analysis = seg.get("analysis", {})
         base_score = analysis.get("relevant_score", 0)
         text_score = compute_semantic_score(emb_vec, keyword_embeddings)
+        if use_relevant == False:
+            return text_score
         return 0.6 * base_score + 0.4 * text_score
 
-    def score_visual(desc, emb_vec):
+    def score_visual(desc, emb_vec, use_relevant=True):
         base_score = desc.get("relevant_score", 0)
         text_score = compute_semantic_score(emb_vec, keyword_embeddings)
+        if use_relevant == False:
+            return text_score
         return 0.6 * base_score + 0.4 * text_score
 
     filters = {
@@ -232,14 +237,14 @@ def find_matching_segments_with_embeddings(
         "dialogue_type": dialogue_type_filter,
     }
 
-    def collect_matches(filters_to_use):
+    def collect_matches(filters_to_use, use_relevant=True):
         matched = []
         for seg in segments:
             analysis = seg.get("analysis", {})
             emb_vec = audio_embeddings.get(f"{seg['start']}-{seg['end']}")
             if emb_vec is None:
                 continue
-            score = score_audio(seg, emb_vec)
+            score = score_audio(seg, emb_vec, use_relevant=use_relevant)
             if score < score_threshold:
                 continue
             if not apply_filters(
@@ -269,7 +274,7 @@ def find_matching_segments_with_embeddings(
             emb_vec = visual_embeddings.get(ts)
             if emb_vec is None:
                 continue
-            score = score_visual(desc, emb_vec)
+            score = score_visual(desc, emb_vec, use_relevant=use_relevant)
             if score < score_threshold:
                 continue
             if not apply_filters(
@@ -294,11 +299,39 @@ def find_matching_segments_with_embeddings(
             )
         return matched
 
-    matched = collect_matches(filters)
+    if not keywords:
+        matched = []
+        for seg in segments:
+            analysis = seg.get("analysis", {})
+            matched.append({
+                "start": seg["start"],
+                "end": seg["end"],
+                "score": analysis.get("relevant_score", 1.0) if use_relevant else analysis.get("score", 1.0),
+                "source": "audio",
+                "theme": analysis.get("theme"),
+                "emotion": analysis.get("emotional_tone"),
+                "dialogue_type": analysis.get("dialogue_type"),
+            })
+
+        for frame in visuals:
+            desc = frame.get("description", {})
+            ts = frame["timestamp"]
+            matched.append({
+                "start": ts - 1.0,
+                "end": ts + 2.0,
+                "score": analysis.get("relevant_score", 1.0) if use_relevant else analysis.get("score", 1.0),
+                "source": "visual",
+                "theme": desc.get("theme"),
+                "mood": desc.get("mood"),
+                "genre": desc.get("genre"),
+            })
+    else: 
+        matched = collect_matches(filters, use_relevant=use_relevant)
+    
     fallback_used = False
     if len(matched) < min_results:
         fallback_used = True
-        matched = collect_matches({k: None for k in filters})
+        matched = collect_matches({k: None for k in filters}, use_relevant=use_relevant)
 
     coverage = {
         "matched_audio_segments": len([m for m in matched if m["source"] == "audio"]),
@@ -344,8 +377,8 @@ def limit_total_duration(segments, max_duration=60.0):
 def extract_clips(video_path, segments, output_path="highlight.mp4"):
     os.makedirs(output_path, exist_ok=True)
     if "highlight.mp4" not in output_path:
-        output_path = output_path+"highlight.mp4"
-    
+        output_path = output_path + "/highlight.mp4"
+
     video = VideoFileClip(video_path)
     max_duration = video.duration
 
@@ -419,6 +452,7 @@ def run_keyword_highlight(
     genre_filter=None,
     dialogue_type_filter=None,
     keywords=None,
+    use_relevant=True,
 ):
     print(
         f"🔍 Filtering segments by: score >= {score_threshold}, emotion = {emotion_filter}, theme = {theme_filter}, mood = {mood_filter}, keywords = {keywords}"
@@ -438,6 +472,7 @@ def run_keyword_highlight(
         genre_filter=genre_filter,
         dialogue_type_filter=dialogue_type_filter,
         keywords=keywords,
+        use_relevant=use_relevant,
     )
 
     merged_segments = merge_close_segments(matched_segments)

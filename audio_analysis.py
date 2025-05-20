@@ -172,6 +172,11 @@ class AudioAnalysis:
         return response.choices[0].message.content.strip()
 
     def analyse_segments(self, segments: List[Dict], relevant_word: str) -> List[Dict]:
+        relevant_word = (
+            "No specific target word. Just analyse freely."
+            if relevant_word is None or relevant_word == ""
+            else relevant_word
+        )
         print(f"⏱️ Analyzing segments...")
         analysed_segments = []
         for i in range(0, len(segments)):
@@ -265,12 +270,11 @@ class AudioAnalysis:
         }
 
     def run_audio_analysis(self, video_path: str, output_path: str, relevant_word: str):
-        # Step 2: Transcribe + repair + analyze
-        # ✅ 保存路径
         segments_path = os.path.join(output_path, "audio_results", "segments.json")
-        results_path =  os.path.join(output_path, "audio_results", "audio_analysis_results.json")
+        results_path = os.path.join(
+            output_path, "audio_results", "audio_analysis_results.json"
+        )
 
-        # ✅ 如果 segments.json 存在，则直接加载；否则重新转录
         if os.path.exists(segments_path):
             print("🔁 Loading cached segments from JSON...")
             with open(segments_path, "r", encoding="utf-8") as f:
@@ -287,27 +291,31 @@ class AudioAnalysis:
 
         # repaired, full_text = audio_analysis.repair_segments_with_gpt(segments)
 
-        segments = clean_and_merge_segments(segments)
+        if os.path.exists(results_path):
+            print("🔁 Loading cached results from JSON...")
+            with open(segments_path, "r", encoding="utf-8") as f:
+                audio_result = json.load(f)
+                return audio_result
+        else:
+            segments = clean_and_merge_segments(segments)
 
-        full = []
-        for seg in segments:
-            full.append(seg["text"])
-        full_text = "\n".join(full)
+            full = []
+            for seg in segments:
+                full.append(seg["text"])
+            full_text = "\n".join(full)
 
-        analysed = self.analyse_segments(segments, relevant_word=relevant_word)
-        summary = self.summarize_full_transcript(full_text)
-        stats = self.summarize_analysis_distribution(analysed)
+            analysed = self.analyse_segments(segments, relevant_word=relevant_word)
+            summary = self.summarize_full_transcript(full_text)
+            stats = self.summarize_analysis_distribution(analysed)
 
-        audio_result = {
-            "segments": analysed,
-            "full_summary": summary,
-            "distribution_summary": stats,
-        }
+            audio_result = {
+                "segments": analysed,
+                "full_summary": summary,
+                "distribution_summary": stats,
+            }
 
-        with open(
-            results_path, "w", encoding="utf-8"
-        ) as f:
-            json.dump(audio_result, f, indent=2)
-        print(f"✅ Audio analysis result saved to {results_path}")
+            with open(results_path, "w", encoding="utf-8") as f:
+                json.dump(audio_result, f, indent=2)
+            print(f"✅ Audio analysis result saved to {results_path}")
 
-        return audio_result
+            return audio_result

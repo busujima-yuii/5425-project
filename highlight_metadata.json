@@ -2,94 +2,49 @@
   "clips": [
     {
       "start": 703,
-      "end": 713,
-      "score": 0.8240057468414307,
-      "source": "audio,audio,audio",
+      "end": 746,
+      "score": 1.0,
+      "source": "audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio",
       "theme": "concern for safety",
       "emotion": "worried",
       "dialogue_type": "drama"
     },
     {
-      "start": 1204,
-      "end": 1210,
-      "score": 0.7755819702148438,
-      "source": "audio,audio,audio,audio",
-      "theme": "confrontation",
-      "emotion": "frustration",
-      "dialogue_type": "other"
-    },
-    {
-      "start": 1101,
-      "end": 1108,
-      "score": 0.7580034399032594,
-      "source": "audio,audio",
-      "theme": "communication and urgency",
-      "emotion": "tense",
-      "dialogue_type": "drama"
-    },
-    {
-      "start": 1981,
-      "end": 1983,
-      "score": 0.753428020477295,
-      "source": "audio",
-      "theme": "anticipation of danger",
-      "emotion": "determined",
-      "dialogue_type": "other"
-    },
-    {
-      "start": 2104.31,
-      "end": 2107.31,
-      "score": 0.7521573925018311,
+      "start": 19.69,
+      "end": 22.69,
+      "score": 0.9,
       "source": "visual",
-      "theme": "suspense",
+      "theme": "urban exploration",
+      "mood": "ominous",
+      "genre": "thriller"
+    },
+    {
+      "start": 28.32,
+      "end": 31.32,
+      "score": 0.9,
+      "source": "visual",
+      "theme": "urban chaos",
       "mood": "tense",
       "genre": "thriller"
     },
     {
-      "start": 661,
-      "end": 663,
-      "score": 0.7492688798904419,
-      "source": "audio",
-      "theme": "concern for safety",
-      "emotion": "anxious",
-      "dialogue_type": "drama"
-    },
-    {
-      "start": 481,
-      "end": 485,
-      "score": 0.7401304149627685,
-      "source": "audio",
-      "theme": "concern for safety",
-      "emotion": "worried",
-      "dialogue_type": "drama"
-    },
-    {
-      "start": 2910.7,
-      "end": 2913.7,
-      "score": 0.7372590780258179,
-      "source": "visual",
-      "theme": "danger",
+      "start": 44.34,
+      "end": 49.38,
+      "score": 0.9,
+      "source": "visual,visual,visual",
+      "theme": "urban exploration",
       "mood": "tense",
       "genre": "thriller"
     },
     {
-      "start": 2086,
-      "end": 2089,
-      "score": 0.7332202577590943,
-      "source": "audio",
-      "theme": "destruction and protection",
-      "emotion": "defiant",
-      "dialogue_type": "drama"
-    },
-    {
-      "start": 1315,
-      "end": 1316,
-      "score": 0.7284258031845093,
-      "source": "audio",
-      "theme": "urgency to escape or act",
-      "emotion": "tense",
-      "dialogue_type": "action"
+      "start": 53.05,
+      "end": 57.31,
+      "score": 0.9,
+      "source": "visual,visual",
+      "theme": "artistic expression",
+      "mood": "mysterious",
+      "genre": "experimental"
     }
   ],
-  "total_duration": 41.0
+  "total_duration": 58.300000000000004
 }
