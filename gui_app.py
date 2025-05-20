@@ -200,7 +200,7 @@ def generate_highlight(
 
     # actual_threshold = score_threshold if use_relevance else 0.0
 
-    output_path = run_keyword_highlight(
+    output_name = run_keyword_highlight(
         video_path=state["video_path"],
         file_path=state["output_path"],
         score_threshold=score_threshold,
@@ -213,7 +213,9 @@ def generate_highlight(
         keywords=[keyword_input] if keyword_input else None,
         use_relevant=use_relevance,
     )
-    return output_path
+
+    output_full_path = os.path.join(state["output_path"], output_name)
+    return output_full_path
 
 
 with gr.Blocks() as demo:
