@@ -7,8 +7,7 @@ from typing import List, Dict
 from collections import Counter, defaultdict
 from util import clean_and_merge_segments, extract_json_from_response
 
-api_key = "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"
-
+api_key = ""
 
 class AudioAnalysis:
     def __init__(

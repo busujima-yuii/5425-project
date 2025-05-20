@@ -18,8 +18,7 @@ from scenedetect import VideoManager, SceneManager
 from scenedetect.detectors import ContentDetector
 from scenedetect.scene_manager import save_images
 
-api_key = "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"
-
+api_key = ""
 
 class VisualAnalysis:
     def __init__(self, output_folder="keyframes"):

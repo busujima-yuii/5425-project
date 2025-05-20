@@ -50,7 +50,9 @@ pip install -r requirements.txt
 
 ## Things to do before running
 
-Remember to change openai-apikey before you run the scripts. You may contact our group for api-key to test this project(assgignment)
+Remember to change openai-apikey before you run the scripts. You may contact our group for api-key to test this project(assgignment):
+audio_analysis.py >> api-key
+visual_analysis.py >> api-key
 
 ## 💻 How to Launch the GUI
 
