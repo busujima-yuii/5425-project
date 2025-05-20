@@ -3,3 +3,9 @@ ffmpeg-python
 whoosh
 numpy
 openai  # for GPT API access
+gradio
+moviepy==1.0.3
+faster-whisper
+sentence-transformers
+opencv-python
+scenedetect

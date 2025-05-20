@@ -1,94 +1,91 @@
-## Setup Guide
 
-1. Manually install ffmpeg on local machine and check if the installation is successful:
-   ```bash
-   ffmpeg -version
-   ```
+# 🎬 Multimodal Video Highlight Generator
 
-2. Install required Python packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
+This project provides a multimodal video highlight generation tool based on audio and visual analysis. It uses OpenAI GPT models and Whisper transcription to identify and extract the most meaningful segments from full-length videos and automatically generate a concise highlight clip.
 
-3. Replace openai_api_key variable with key
+##  Author: Page(Peizhi) Zhu, Beichen Yu, Lynda Li
 
-## Usage for Audio Analyser
+## 📦 Project Structure
 
-1. Place your video file in the same directory
-2. Inside main.py, find video_path, and replace the directory of your video with "video_placeholder"
-3. Run the main script:
-   ```bash
-   python main.py
-   ```
+| File | Description |
+|------|-------------|
+| `gui_app.py` | Main interactive interface built with Gradio |
+| `highlight_editor.py` | Core logic: scoring, filtering, segment merging, clip generation |
+| `audio_analysis.py` | Whisper-based transcription and GPT-based audio semantic/emotional analysis |
+| `visual_analysis.py` | Frame extraction and GPT-based visual content + color theme analysis |
+| `test.py` | Sample test entry to run the analysis pipeline |
+| `util.py` | Utility functions for image processing, merging, JSON extraction, etc. |
 
-## Output
+## 🚀 Key Features
 
-The analyser generates a detailed analysis of the video content, saved in the `results` directory as `{video_name}_results.json`. The analysis includes:
+- 🎧 **Audio Analysis**: Transcription with timestamps, GPT-powered emotional and thematic analysis
+- 🖼️ **Visual Analysis**: Keyframe extraction, color theme classification, visual content description
+- 🤖 **GPT Integration**: Uses `gpt-4o-mini` or `gpt-3.5-turbo` for all intelligent interpretation tasks
+- 📊 **Multidimensional Filtering**: Filter by emotion, theme, genre, dialogue type, and more
+- ✂️ **Automatic Highlighting**: Extracts and merges top-scoring segments into a final highlight video
+- 💻 **User-Friendly GUI**: Full workflow managed via Gradio-based interface
 
-### Overall Analysis
-- Primary Dialogue Type (e.g., action, horror, comedy, romance, fantasy)
-- Primary Theme
-- Primary Emotional Tone
-- Key Points from the video
+## 🧠 Highlights
 
-### Segment Analysis
-For each segment of the video, the analysis includes:
-- Start and end timestamps
-- Transcribed text
-- Dialogue type
-- Theme
-- Emotional tone
-- Confidence score
-- Key points for that segment
+- ✅ **Keyword-Optional**: If no keyword is entered, the system will fall back to confidence-based scoring
+- 🔍 **Multimodal Matching**: Combines GPT relevance score and embedding-based semantic similarity
+- 🔁 **Segment Merging**: Merges nearby clips to form coherent highlights
+- ⏱️ **Duration Limit**: Total output duration can be capped (e.g., 60 seconds)
+- 🛡️ **Fallback Logic**: If filters are too strict, system auto-relaxes constraints to ensure results
 
-### Example Output Structure
-```json
-{
-  "overall_analysis": {
-    "primary_dialogue_type": "comedy",
-    "dialogue_type_distribution": {
-      "comedy": 3,
-      "drama": 2
-    },
-    "primary_theme": "family",
-    "theme_distribution": {
-      "family": 2,
-      "friendship": 1
-    },
-    "primary_emotional_tone": "happy",
-    "emotional_tone_distribution": {
-      "happy": 3,
-      "excited": 2
-    },
-    "key_points": [
-      "Family activities",
-      "Friendship moments",
-      "Learning experiences"
-    ],
-    "analysis_timestamp": "2024-03-14T15:30:45.123456",
-    "total_segments": 5
-  },
-  "segment_analysis": [
-    {
-      "start": 0,
-      "end": 5,
-      "text": "Transcribed text from the video",
-      "analysis": {
-        "dialogue_type": "comedy",
-        "theme": "family",
-        "emotional_tone": "happy",
-        "confidence_score": 0.92,
-        "key_points": [
-          "Point 1",
-          "Point 2"
-        ]
-      }
-    }
-  ]
-}
+## 🛠 Installation
+
+```bash
+pip install -r requirements.txt
 ```
 
-## Notes
+### Key dependencies:
+- `gradio`
+- `openai`
+- `moviepy`
+- `faster-whisper`
+- `sentence-transformers`
+- `opencv-python`
+- `scenedetect`
 
-- The analysis quality depends on the audio quality of the input video
-- Processing time varies based on video length and complexity
+## 💻 How to Launch the GUI
+
+```bash
+python gui_app.py
+```
+
+Visit [http://localhost:7860](http://localhost:7860) in your browser.
+
+## 📂 Workflow (GUI)
+
+1. Select or upload a video
+2. Optionally enter a keyword (e.g., “danger”)
+3. Click **Start Analysis** to perform both audio and visual analysis
+4. View summaries and filter statistics
+5. Select desired filters (theme, mood, genre, emotion, dialogue type)
+6. Click **Generate Highlight** to produce the final video
+
+## 📁 Output Directory Structure
+
+```
+video_outputs/
+└── <video_name>/
+    ├── audio_results/
+    │   └── audio_analysis_results.json
+    ├── visual_results/
+    │   └── visual_analysis_result.json
+    ├── highlight.mp4
+    └── highlight_metadata.json
+```
+
+## 🔧 CLI Mode (for batch testing)
+
+```bash
+python highlight_editor.py
+```
+
+Edit the `__main__` section in `highlight_editor.py` to set `video_path` and `output_path`.
+
+## 📩 Contact
+
+For questions, collaboration, or issues, please reach out COMP5425 Project Group9: beyu0824 pzhu0521 chdu0298 yuli4954
